@@ -47,7 +47,7 @@ if process_button and url:
         embedding_client = GoogleCloudEmbeddings()
         embedding_processor = EmbeddingProcessor(embedding_client=embedding_client)
         
-        embeddings_data = embedding_processor.embed_content(content)
+        embeddings_data = embedding_processor.process_pages(content)
         
         st.session_state.processed_data = embeddings_data
     
