@@ -29,31 +29,11 @@ class EmbeddingVisualizer:
         # Print the first item to debug the structure
         print("Data structure sample:", embeddings_data[0].keys())
         
-        # Extract embeddings and texts - adapt to your actual data structure
-        # Check what keys are actually in your data
-        if 'content' in embeddings_data[0]:
-            # If the key is 'content' instead of 'text'
-            texts = [item['content'][:100] + '...' if len(item['content']) > 50 else item['content'] for item in embeddings_data]
-        elif 'url' in embeddings_data[0]:
-            # If there's a URL key, use that as label
-            urls = [item['url'] for item in embeddings_data]
-        else:
-            # Fallback to using index numbers
-            texts = [f"Item {i}" for i in range(len(embeddings_data))]
-        
-        # Extract embeddings - adapt to your actual data structure
-        if 'embedding' in embeddings_data[0]:
-            embeddings = np.array([item['embedding'] for item in embeddings_data])
-        elif 'vector' in embeddings_data[0]:
-            embeddings = np.array([item['vector'] for item in embeddings_data])
-        else:
-            # Try to find any numpy array in the data
-            for key in embeddings_data[0].keys():
-                if isinstance(embeddings_data[0][key], (list, np.ndarray)) and len(embeddings_data[0][key]) > 10:
-                    embeddings = np.array([item[key] for item in embeddings_data])
-                    break
-            else:
-                return go.Figure().update_layout(title="Could not find embedding vectors in data")
+        # Extract embeddings, URLs, titles, and content
+        embeddings = np.array([item['embedding'] for item in embeddings_data])
+        urls = [item['url'] for item in embeddings_data]
+        titles = [item['title'] for item in embeddings_data]
+        texts = [item['content'][:200] + '...' if len(item['content']) > 200 else item['content'] for item in embeddings_data]
         
         # Reduce dimensions
         if method == 'pca':
@@ -64,10 +44,10 @@ class EmbeddingVisualizer:
         reduced_data = reducer.fit_transform(embeddings)
         
         # Create dataframe for plotting
-        df = pd.DataFrame(reduced_data, columns=[f"Component {i+1}" for i in range(dimensions)])
+        df = pd.DataFrame(reduced_data, columns=[f"Dimension {i+1}" for i in range(dimensions)])
         df['url'] = urls
-        df['title'] = [item['title'] for item in embeddings_data] if 'title' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
-        df['content'] = [text[:200] + '...' if len(text) > 200 else text for text in texts]
+        df['title'] = titles
+        df['content'] = texts
         
         hover_data = {
             'url': True,
@@ -76,7 +56,7 @@ class EmbeddingVisualizer:
         }
         
         if dimensions == 3:
-            fig = px.scatter_3d(df, x='Component 1', y='Component 2', z='Component 3',
+            fig = px.scatter_3d(df, x='Dimension 1', y='Dimension 2', z='Dimension 3',
                                 hover_data=hover_data,
                                 title=f"{method.upper()} 3D Visualization")
             fig.update_layout(scene=dict(
@@ -85,7 +65,7 @@ class EmbeddingVisualizer:
                 zaxis_title='Dimension 3'
             ))
         else:
-            fig = px.scatter(df, x='Component 1', y='Component 2',
+            fig = px.scatter(df, x='Dimension 1', y='Dimension 2',
                              hover_data=hover_data,
                              title=f"{method.upper()} 2D Visualization")
             fig.update_layout(
