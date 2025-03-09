@@ -31,41 +31,31 @@ st.subheader("Web content analysis and visualization using embeddings")
 with st.sidebar:
     st.header("Input")
     url = st.text_input("Enter a URL to analyze:")
-    depth = st.slider("Crawl depth:", 1, 3, 1, help="How many levels deep to crawl")
+    max_pages = st.slider("Maximum pages to crawl:", 1, 5, 3)
     process_button = st.button("Process URL")
 
 # Main content area
 if process_button and url:
-    # Clear previous results
     st.session_state.processed_data = None
     st.session_state.visualizations = None
     
-    with st.spinner(f"Crawling website (depth {depth})..."):
-        # Create WebCrawler with the base URL
+    with st.spinner(f"Crawling website (max {max_pages} pages)..."):
         crawler = WebCrawler(base_url=url)
-        
-        # Call crawl with the depth parameter
-        content = crawler.crawl(depth=depth)
+        content = crawler.crawl(max_pages=max_pages)
     
     with st.spinner("Generating embeddings..."):
-        embedding_processor = EmbeddingProcessor()
+        embedding_client = GoogleCloudEmbeddings()  # Initialize embedding client
+        embedding_processor = EmbeddingProcessor(embedding_client=embedding_client)
         embeddings_data = embedding_processor.process_text(content)
         
-        # Store in session state
         st.session_state.processed_data = embeddings_data
     
-    # Generate visualizations
     if st.session_state.processed_data:
         with st.spinner("Generating visualizations..."):
             visualizer = EmbeddingVisualizer()
-            
-            # Generate visualization
             fig = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
-            
-            # Store visualization in session state
             st.session_state.visualizations = fig
             
-            # Display statistics
             st.subheader("Content Statistics")
             st.write(f"Total pages crawled: {len(content)}")
             st.write(f"Total embeddings generated: {len(embeddings_data)}")

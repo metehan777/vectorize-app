@@ -60,21 +60,12 @@ class WebCrawler:
                 links.append(absolute_url)
         return links
     
-    def crawl(self, depth=1):
-        """
-        Crawl the website starting from the base URL up to the specified depth.
-        
-        Args:
-            depth (int): How many levels deep to crawl
-            
-        Returns:
-            list: List of dictionaries containing page data
-        """
-        self._crawl_recursive(self.base_url, depth)
+    def crawl(self, max_pages=5):
+        self._crawl_recursive(self.base_url, max_pages)
         return self.pages_data
         
-    def _crawl_recursive(self, url, depth):
-        if depth <= 0 or url in self.visited_urls or len(self.pages_data) >= self.max_pages:
+    def _crawl_recursive(self, url, max_pages):
+        if len(self.pages_data) >= max_pages or url in self.visited_urls:
             return
             
         try:
@@ -103,14 +94,15 @@ class WebCrawler:
             })
             
             # If we've reached our limit, stop
-            if len(self.pages_data) >= self.max_pages:  # Limit to max_pages
+            if len(self.pages_data) >= max_pages:  # Limit to max_pages
                 return
                 
             # Find links and crawl them
-            if depth > 1:
-                links = self.extract_links(soup, url)
-                for link in links:
-                    self._crawl_recursive(link, depth - 1)
+            links = self.extract_links(soup, url)
+            for link in links:
+                if len(self.pages_data) >= max_pages:
+                    break
+                self._crawl_recursive(link, max_pages)
                     
         except Exception as e:
             print(f"Error crawling {url}: {e}")
