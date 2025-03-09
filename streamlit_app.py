@@ -14,194 +14,81 @@ load_dotenv()
 
 # Set page config
 st.set_page_config(
-    page_title="Website Crawler & Vectorizer",
-    page_icon="🕸️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Vectorize",
+    page_icon="🧠",
+    layout="wide"
 )
 
 # Initialize session state variables
-if 'crawled_data' not in st.session_state:
-    st.session_state.crawled_data = []
 if 'processed_data' not in st.session_state:
-    st.session_state.processed_data = []
+    st.session_state.processed_data = None
 if 'visualizations' not in st.session_state:
     st.session_state.visualizations = {}
-if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1
 
 # Title and description
-st.title("Website Crawler & Vectorizer")
-st.markdown("Crawl a website, vectorize the content using Google Cloud's embedding model, and visualize the results.")
+st.title("Vectorize")
+st.subheader("Web content analysis and visualization using embeddings")
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-step = st.sidebar.radio(
-    "Go to step:",
-    ["1. Crawl Website", "2. Vectorize Content", "3. Visualize Embeddings"],
-    index=st.session_state.current_step - 1,
-    disabled=(st.session_state.current_step == 1 and len(st.session_state.crawled_data) == 0) or 
-             (st.session_state.current_step <= 2 and len(st.session_state.processed_data) == 0)
-)
+# Sidebar for inputs
+with st.sidebar:
+    st.header("Input")
+    url = st.text_input("Enter a URL to analyze:")
+    depth = st.slider("Crawl depth:", 0, 3, 1)
+    process_button = st.button("Process URL")
 
-# Update current step based on sidebar selection
-if step == "1. Crawl Website":
-    st.session_state.current_step = 1
-elif step == "2. Vectorize Content":
-    st.session_state.current_step = 2
-elif step == "3. Visualize Embeddings":
-    st.session_state.current_step = 3
-
-# Step 1: Crawl Website
-if st.session_state.current_step == 1:
-    st.header("Step 1: Crawl a Website")
+# Main content area
+if process_button and url:
+    # Clear previous results
+    st.session_state.processed_data = None
+    st.session_state.visualizations = {}
     
-    with st.form("crawl_form"):
-        url = st.text_input("Website URL", placeholder="https://example.com")
-        col1, col2 = st.columns(2)
-        with col1:
-            max_pages = st.number_input("Maximum Pages to Crawl", min_value=1, max_value=100, value=20)
-        with col2:
-            same_domain = st.checkbox("Stay on the same domain", value=True)
+    with st.spinner("Crawling website..."):
+        crawler = WebCrawler()
+        content = crawler.crawl(url, depth)
+    
+    with st.spinner("Generating embeddings..."):
+        embedding_processor = EmbeddingProcessor()
+        embeddings_data = embedding_processor.process_text(content)
         
-        submitted = st.form_submit_button("Start Crawling")
-        
-        if submitted:
-            if not url:
-                st.error("Please enter a valid URL")
-            else:
-                try:
-                    progress_placeholder = st.empty()
-                    
-                    # Define a callback to update progress
-                    def update_progress(message):
-                        progress_placeholder.text(message)
-                    
-                    with st.spinner("Crawling website..."):
-                        # Initialize and run crawler with progress callback
-                        crawler = WebCrawler(url, max_pages=max_pages, same_domain_only=same_domain)
-                        result = crawler.crawl(progress_callback=update_progress)
-                        
-                        if not result:
-                            st.error("Failed to crawl any pages. Please check the URL and try again.")
-                        else:
-                            st.session_state.crawled_data = result
-                            progress_placeholder.empty()  # Clear the progress messages
-                            st.success(f"Crawled {len(st.session_state.crawled_data)} pages")
-                            
-                            # Display crawled pages
-                            st.subheader("Crawled Pages")
-                            df = pd.DataFrame([
-                                {"Title": page["title"], "URL": page["url"]} 
-                                for page in st.session_state.crawled_data
-                            ])
-                            st.dataframe(df, use_container_width=True)
-                            
-                            # Enable next step
-                            st.session_state.current_step = 2
-                            st.rerun()
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
+        # Store in session state
+        st.session_state.processed_data = embeddings_data
+    
+    # Generate visualizations
+    if st.session_state.processed_data:
+        with st.spinner("Generating visualizations..."):
+            visualizer = EmbeddingVisualizer()
+            
+            # Generate different visualizations
+            pca_3d = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
+            
+            # Store visualizations in session state
+            st.session_state.visualizations = {
+                'pca_3d': pca_3d
+            }
+            
+            # Display statistics
+            st.subheader("Content Statistics")
+            st.write(f"Total pages crawled: {len(content)}")
+            st.write(f"Total embeddings generated: {len(embeddings_data)}")
 
-# Step 2: Vectorize Content
-elif st.session_state.current_step == 2:
-    st.header("Step 2: Vectorize Content")
-    
-    st.info("Generate embeddings for the crawled content using Google Cloud's embedding model.")
-    
-    if st.button("Generate Embeddings"):
-        with st.spinner("Generating embeddings..."):
-            try:
-                # Initialize embedding client with default project ID
-                embedding_client = GoogleCloudEmbeddings()
-                processor = EmbeddingProcessor(embedding_client)
-                
-                # Process the crawled data
-                st.session_state.processed_data = processor.process_pages(st.session_state.crawled_data)
-                
-                st.success(f"Vectorized {len(st.session_state.processed_data)} pages")
-                st.session_state.current_step = 3
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error generating embeddings: {str(e)}")
-                
-                # For demo purposes, allow continuing with dummy data
-                if st.button("Continue with Demo Data"):
-                    # Create dummy embeddings
-                    for page in st.session_state.crawled_data:
-                        # Create a random embedding vector
-                        page['embedding'] = np.random.rand(768)
-                    
-                    st.session_state.processed_data = st.session_state.crawled_data
-                    st.success("Created demo embeddings for visualization")
-                    st.session_state.current_step = 3
-                    st.rerun()
-
-# Step 3: Visualize Embeddings
-elif st.session_state.current_step == 3:
-    st.header("Step 3: Visualize Embeddings")
-    
-    # Generate visualizations if not already done
+# Display visualizations if available
+if st.session_state.processed_data is not None:
+    # Make sure visualizations are generated
     if not st.session_state.visualizations:
         with st.spinner("Generating visualizations..."):
             visualizer = EmbeddingVisualizer()
-            fig = visualizer.visualize_embeddings(st.session_state.processed_data)
-            st.session_state.visualizations = fig
+            pca_3d = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
+            st.session_state.visualizations = {
+                'pca_3d': pca_3d
+            }
     
-    # Create tabs for different visualizations
-    tab1, tab2, tab3, tab4 = st.tabs(["PCA 3D", "PCA 2D", "UMAP 3D", "UMAP 2D"])
-    
-    with tab1:
-        st.plotly_chart(st.session_state.visualizations['pca_3d'], use_container_width=True)
-    
-    with tab2:
-        st.plotly_chart(st.session_state.visualizations['pca_2d'], use_container_width=True)
-    
-    with tab3:
-        st.plotly_chart(st.session_state.visualizations['umap_3d'], use_container_width=True)
-    
-    with tab4:
-        st.plotly_chart(st.session_state.visualizations['umap_2d'], use_container_width=True)
-    
-    # Export data
-    st.subheader("Export Data")
-    
-    if st.button("Export to CSV"):
-        # Create a simplified version for export (without the large embedding vectors)
-        export_data = []
-        for page in st.session_state.processed_data:
-            export_data.append({
-                'url': page['url'],
-                'title': page['title'],
-                'content_preview': page['content'][:200] + '...' if len(page['content']) > 200 else page['content']
-            })
-        
-        # Convert to DataFrame and generate CSV
-        df = pd.DataFrame(export_data)
-        csv = df.to_csv(index=False)
-        
-        # Create download button
-        st.download_button(
-            label="Download CSV",
-            data=csv,
-            file_name="website_data.csv",
-            mime="text/csv"
-        )
-    
-    # Display data table
-    st.subheader("Crawled Data")
-    
-    # Create a simplified DataFrame for display
-    display_data = []
-    for page in st.session_state.processed_data:
-        display_data.append({
-            'Title': page['title'],
-            'URL': page['url'],
-            'Content Preview': page['content'][:100] + '...' if len(page['content']) > 100 else page['content']
-        })
-    
-    df = pd.DataFrame(display_data)
-    st.dataframe(df, use_container_width=True)
+    # Display the visualization
+    st.subheader("Embedding Visualization")
+    st.plotly_chart(st.session_state.visualizations['pca_3d'], use_container_width=True)
+
+# Footer
+st.markdown("---")
+st.caption("Powered by Google Generative AI and Streamlit")
 
 # Add a guide for interpreting results
 st.markdown("---")
