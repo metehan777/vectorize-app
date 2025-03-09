@@ -33,7 +33,7 @@ class EmbeddingVisualizer:
         # Check what keys are actually in your data
         if 'content' in embeddings_data[0]:
             # If the key is 'content' instead of 'text'
-            texts = [item['content'][:100] + '...' if len(item['content']) > 100 else item['content'] for item in embeddings_data]
+            texts = [item['content'][:100] + '...' if len(item['content']) > 50 else item['content'] for item in embeddings_data]
         elif 'url' in embeddings_data[0]:
             # If there's a URL key, use that as label
             urls = [item['url'] for item in embeddings_data]
@@ -64,24 +64,33 @@ class EmbeddingVisualizer:
         reduced_data = reducer.fit_transform(embeddings)
         
         # Create dataframe for plotting
-        df = pd.DataFrame(reduced_data, columns=[f'Component {i+1}' for i in range(dimensions)])
-        df['URL'] = [item['url'] for item in embeddings_data] if 'url' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
-        df['Title'] = [item['title'] for item in embeddings_data] if 'title' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
-        df['Content'] = texts
+        df = pd.DataFrame(reduced_data, columns=[f"Component {i+1}" for i in range(dimensions)])
+        df['url'] = urls
+        df['title'] = [item['title'] for item in embeddings_data] if 'title' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
+        df['content'] = [text[:200] + '...' if len(text) > 200 else text for text in texts]
         
-        hover_data = {'URL': True, 'Title': True, 'Content': True}
+        hover_data = {
+            'url': True,
+            'title': True,
+            'content': True
+        }
         
         if dimensions == 3:
             fig = px.scatter_3d(df, x='Component 1', y='Component 2', z='Component 3',
                                 hover_data=hover_data,
                                 title=f"{method.upper()} 3D Visualization")
+            fig.update_layout(scene=dict(
+                xaxis_title='Dimension 1',
+                yaxis_title='Dimension 2',
+                zaxis_title='Dimension 3'
+            ))
         else:
             fig = px.scatter(df, x='Component 1', y='Component 2',
                              hover_data=hover_data,
                              title=f"{method.upper()} 2D Visualization")
-        
-        fig.update_layout(
-            margin=dict(l=0, r=0, b=0, t=30)
-        )
+            fig.update_layout(
+                xaxis_title='Dimension 1',
+                yaxis_title='Dimension 2'
+            )
         
         return fig 
