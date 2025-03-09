@@ -41,7 +41,7 @@ if process_button and url:
     st.session_state.visualizations = None
     
     with st.spinner("Crawling website..."):
-        crawler = WebCrawler()
+        crawler = WebCrawler(base_url=url)
         content = crawler.crawl(url, depth)
     
     with st.spinner("Generating embeddings..."):
