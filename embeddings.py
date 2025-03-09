@@ -2,6 +2,15 @@ import os
 from google.cloud import aiplatform
 import numpy as np
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get Gemini API key from environment variables
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables")
 
 # Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/metehan/Documents/Cursor/vectorize/metehan777-e4063b146f6d.json"
@@ -9,8 +18,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/metehan/Documents/Cursor/
 # Set your Google Cloud project ID here
 PROJECT_ID = "metehan777"  # Replace with your actual project ID
 
-# Set Gemini API key
-os.environ["GEMINI_API_KEY"] = "AIzaSyBWQaMs7m-8QYKkFGBC9TVc4Ajpjn6bYpY"
+# Configure Gemini with the API key
+genai.configure(api_key=GEMINI_API_KEY)
 
 class GoogleCloudEmbeddings:
     def __init__(self, project_id=None, location="us-central1", model_name="models/embedding-001"):
@@ -32,12 +41,6 @@ class GoogleCloudEmbeddings:
         
         # For Vertex AI (if needed for other operations)
         aiplatform.init(project=self.project_id, location=self.location)
-        
-        # For Gemini API
-        self.api_key = os.environ["GEMINI_API_KEY"]
-        
-        # Initialize Gemini
-        genai.configure(api_key=self.api_key)
         
     def get_embeddings(self, texts):
         """
