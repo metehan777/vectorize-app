@@ -16,7 +16,7 @@ class EmbeddingVisualizer:
         Visualize embeddings using dimensionality reduction
         
         Args:
-            embeddings_data: List of dictionaries with text and embedding
+            embeddings_data: List of dictionaries with content and embedding
             method: 'pca' or 'umap' for dimensionality reduction
             
         Returns:
@@ -25,10 +25,35 @@ class EmbeddingVisualizer:
         if not embeddings_data:
             return go.Figure().update_layout(title="No data to visualize")
         
-        # Extract embeddings and texts
-        texts = [item['text'][:50] + '...' if len(item['text']) > 50 else item['text'] 
-                for item in embeddings_data]
-        embeddings = np.array([item['embedding'] for item in embeddings_data])
+        # Print the first item to debug the structure
+        print("Data structure sample:", embeddings_data[0].keys())
+        
+        # Extract embeddings and texts - adapt to your actual data structure
+        # Check what keys are actually in your data
+        if 'content' in embeddings_data[0]:
+            # If the key is 'content' instead of 'text'
+            texts = [item['content'][:50] + '...' if len(item['content']) > 50 else item['content'] 
+                    for item in embeddings_data]
+        elif 'url' in embeddings_data[0]:
+            # If there's a URL key, use that as label
+            texts = [item['url'] for item in embeddings_data]
+        else:
+            # Fallback to using index numbers
+            texts = [f"Item {i}" for i in range(len(embeddings_data))]
+        
+        # Extract embeddings - adapt to your actual data structure
+        if 'embedding' in embeddings_data[0]:
+            embeddings = np.array([item['embedding'] for item in embeddings_data])
+        elif 'vector' in embeddings_data[0]:
+            embeddings = np.array([item['vector'] for item in embeddings_data])
+        else:
+            # Try to find any numpy array in the data
+            for key in embeddings_data[0].keys():
+                if isinstance(embeddings_data[0][key], (list, np.ndarray)) and len(embeddings_data[0][key]) > 10:
+                    embeddings = np.array([item[key] for item in embeddings_data])
+                    break
+            else:
+                return go.Figure().update_layout(title="Could not find embedding vectors in data")
         
         # Reduce dimensions
         if method == 'pca':
