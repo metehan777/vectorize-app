@@ -21,7 +21,7 @@ class GoogleCloudEmbeddings:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables.")
         genai.configure(api_key=api_key)
-        self.model_name = "gemini-embedding-exp-03-07"
+        self.model_name = "models/gemini-embedding-exp-03-07"
 
     def embed_text(self, text):
         embedding_response = genai.embed_content(
