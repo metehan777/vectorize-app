@@ -69,17 +69,34 @@ if process_button and url:
 if st.session_state.visualizations:
     tab1, tab2, tab3, tab4 = st.tabs(["PCA 3D", "PCA 2D", "UMAP 3D", "UMAP 2D"])
 
+    def display_table(data):
+        table_html = "<table style='width:100%; border-collapse: collapse;' border='1'>"
+        table_html += "<tr><th>URL</th><th>Title</th><th>Content Snippet</th></tr>"
+        for item in data:
+            snippet = item['content'][:200] + '...' if len(item['content']) > 200 else item['content']
+            table_html += f"<tr><td><a href='{item['url']}' target='_blank'>{item['url']}</a></td><td>{item['title']}</td><td>{snippet}</td></tr>"
+        table_html += "</table>"
+        st.markdown(table_html, unsafe_allow_html=True)
+
     with tab1:
         st.plotly_chart(st.session_state.visualizations['pca_3d'], use_container_width=True)
+        st.subheader("Crawled Pages")
+        display_table(st.session_state.processed_data)
 
     with tab2:
         st.plotly_chart(st.session_state.visualizations['pca_2d'], use_container_width=True)
+        st.subheader("Crawled Pages")
+        display_table(st.session_state.processed_data)
 
     with tab3:
         st.plotly_chart(st.session_state.visualizations['umap_3d'], use_container_width=True)
+        st.subheader("Crawled Pages")
+        display_table(st.session_state.processed_data)
 
     with tab4:
         st.plotly_chart(st.session_state.visualizations['umap_2d'], use_container_width=True)
+        st.subheader("Crawled Pages")
+        display_table(st.session_state.processed_data)
 
 # Footer
 st.markdown("---")
