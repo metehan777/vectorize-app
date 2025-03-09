@@ -4,6 +4,7 @@ from embeddings import GoogleCloudEmbeddings, EmbeddingProcessor
 from visualizer import EmbeddingVisualizer
 import os
 from dotenv import load_dotenv
+import time
 
 # Load environment variables
 load_dotenv()
@@ -15,17 +16,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# Initialize session state
+if 'processed_data' not in st.session_state:
+    st.session_state.processed_data = None
+
+if 'visualizations' not in st.session_state:
+    st.session_state.visualizations = None
+
 # App title and description
 st.title("Vectorize")
 st.subheader("Web content analysis and visualization using embeddings")
-
-# Initialize session state variables
-if 'crawled_data' not in st.session_state:
-    st.session_state.crawled_data = None
-if 'embeddings_data' not in st.session_state:
-    st.session_state.embeddings_data = None
-if 'visualization' not in st.session_state:
-    st.session_state.visualization = None
 
 # Sidebar for inputs
 with st.sidebar:
@@ -36,58 +36,49 @@ with st.sidebar:
 
 # Main content area
 if process_button and url:
-    # Reset session state
-    st.session_state.crawled_data = None
-    st.session_state.embeddings_data = None
-    st.session_state.visualization = None
+    # Clear previous results
+    st.session_state.processed_data = None
+    st.session_state.visualizations = None
     
-    # Step 1: Crawl website
     with st.spinner("Crawling website..."):
         crawler = WebCrawler()
-        crawled_data = crawler.crawl(url, depth)
-        if crawled_data:
-            st.session_state.crawled_data = crawled_data
-            st.success(f"Crawled {len(crawled_data)} pages")
-        else:
-            st.error("Failed to crawl website. Please check the URL and try again.")
+        content = crawler.crawl(url, depth)
     
-    # Step 2: Generate embeddings
-    if st.session_state.crawled_data:
-        with st.spinner("Generating embeddings..."):
-            embedding_processor = EmbeddingProcessor()
-            embeddings_data = embedding_processor.process_text(st.session_state.crawled_data)
-            if embeddings_data:
-                st.session_state.embeddings_data = embeddings_data
-                st.success(f"Generated embeddings for {len(embeddings_data)} items")
-            else:
-                st.error("Failed to generate embeddings.")
+    with st.spinner("Generating embeddings..."):
+        embedding_processor = EmbeddingProcessor()
+        embeddings_data = embedding_processor.process_text(content)
+        
+        # Store in session state
+        st.session_state.processed_data = embeddings_data
     
-    # Step 3: Visualize embeddings
-    if st.session_state.embeddings_data:
-        with st.spinner("Visualizing embeddings..."):
+    # Generate visualizations
+    if st.session_state.processed_data:
+        with st.spinner("Generating visualizations..."):
             visualizer = EmbeddingVisualizer()
-            fig = visualizer.visualize_embeddings(st.session_state.embeddings_data)
-            st.session_state.visualization = fig
-            st.success("Visualization created")
+            
+            # Generate visualization
+            fig = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
+            
+            # Store visualization in session state
+            st.session_state.visualizations = fig
+            
+            # Display statistics
+            st.subheader("Content Statistics")
+            st.write(f"Total pages crawled: {len(content)}")
+            st.write(f"Total embeddings generated: {len(embeddings_data)}")
 
-# Display visualization if available
-if st.session_state.visualization:
-    st.subheader("Embedding Visualization")
-    st.plotly_chart(st.session_state.visualization, use_container_width=True)
+# Display visualizations if available
+if st.session_state.processed_data is not None:
+    # Make sure visualizations are generated
+    if st.session_state.visualizations is None:
+        with st.spinner("Generating visualizations..."):
+            visualizer = EmbeddingVisualizer()
+            fig = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
+            st.session_state.visualizations = fig
     
-    # Display statistics
-    if st.session_state.crawled_data and st.session_state.embeddings_data:
-        st.subheader("Content Statistics")
-        st.write(f"Total pages crawled: {len(st.session_state.crawled_data)}")
-        st.write(f"Total embeddings generated: {len(st.session_state.embeddings_data)}")
-
-# Instructions when no URL is provided
-if not st.session_state.crawled_data:
-    st.info("Enter a URL in the sidebar and click 'Process URL' to begin analysis.")
-    st.write("This application will:")
-    st.write("1. Crawl the provided website")
-    st.write("2. Generate embeddings for the content")
-    st.write("3. Visualize the relationships between different pieces of content")
+    # Display the visualization
+    st.subheader("Embedding Visualization")
+    st.plotly_chart(st.session_state.visualizations, use_container_width=True)
 
 # Footer
 st.markdown("---")
