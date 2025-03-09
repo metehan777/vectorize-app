@@ -144,8 +144,9 @@ elif st.session_state.current_step == 3:
     # Generate visualizations if not already done
     if not st.session_state.visualizations:
         with st.spinner("Generating visualizations..."):
-            visualizer = EmbeddingVisualizer(st.session_state.processed_data)
-            st.session_state.visualizations = visualizer.generate_visualizations()
+            visualizer = EmbeddingVisualizer()
+            fig = visualizer.visualize_embeddings(st.session_state.processed_data)
+            st.session_state.visualizations = fig
     
     # Create tabs for different visualizations
     tab1, tab2, tab3, tab4 = st.tabs(["PCA 3D", "PCA 2D", "UMAP 3D", "UMAP 2D"])
