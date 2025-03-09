@@ -12,73 +12,41 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-# Set Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/metehan/Documents/Cursor/vectorize/metehan777-e4063b146f6d.json"
-
-# Set your Google Cloud project ID here
-PROJECT_ID = "metehan777"  # Replace with your actual project ID
-
 # Configure Gemini with the API key
 genai.configure(api_key=GEMINI_API_KEY)
 
 class GoogleCloudEmbeddings:
-    def __init__(self, project_id=None, location="us-central1", model_name="models/embedding-001"):
-        """
-        Initialize the Google Cloud Embeddings client.
-        
-        Args:
-            project_id: Your Google Cloud project ID
-            location: Region where your model is deployed
-            model_name: The embedding model name
-        """
-        # Use the provided project_id or fall back to the global PROJECT_ID
-        self.project_id = project_id if project_id else PROJECT_ID
-        self.location = location
-        self.model_name = model_name
-        
-        if not self.project_id:
-            raise ValueError("Project ID is required. Please set PROJECT_ID in the code or provide it when initializing.")
-        
-        # For Vertex AI (if needed for other operations)
-        aiplatform.init(project=self.project_id, location=self.location)
-        
-    def get_embeddings(self, texts):
-        """
-        Get embeddings for a list of texts using Gemini embedding model.
-        
-        Args:
-            texts: List of text strings to embed
-            
-        Returns:
-            List of embedding vectors
-        """
-        embeddings = []
-        
-        # Process each text individually
-        for text in texts:
-            try:
-                # Get embedding using Gemini API
-                result = genai.embed_content(
-                    model=self.model_name,
-                    content=text,
-                    task_type="RETRIEVAL_DOCUMENT"  # or "RETRIEVAL_QUERY" for queries
-                )
-                
-                # Extract the embedding vector
-                embedding = np.array(result["embedding"])
-                embeddings.append(embedding)
-                
-            except Exception as e:
-                print(f"Error getting embedding for text: {e}")
-                # Add a zero vector as fallback
-                embeddings.append(np.zeros(768))  # Default to 768 dimensions for fallback
-        
-        return embeddings
+    def __init__(self):
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not found in environment variables.")
+        genai.configure(api_key=api_key)
+        self.model_name = "gemini-embedding-exp-03-07"
+
+    def embed_text(self, text):
+        embedding_response = genai.embed_content(
+            model=self.model_name,
+            content=text,
+            task_type="retrieval_document"
+        )
+        return embedding_response["embedding"]
 
 class EmbeddingProcessor:
     def __init__(self, embedding_client):
         self.embedding_client = embedding_client
-        
+
+    def generate_embeddings(self, content):
+        embeddings_data = []
+        for item in content:
+            embedding = self.embedding_client.embed_text(item['content'])
+            embeddings_data.append({
+                'url': item['url'],
+                'title': item['title'],
+                'content': item['content'],
+                'embedding': embedding
+            })
+        return embeddings_data
+
     def process_pages(self, pages_data):
         """
         Process crawled pages and add embeddings.
