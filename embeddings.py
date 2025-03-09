@@ -24,6 +24,8 @@ class GoogleCloudEmbeddings:
         self.model_name = "models/gemini-embedding-exp-03-07"
 
     def embed_text(self, text):
+        if not text.strip():
+            raise ValueError("Content for embedding must not be empty.")
         embedding_response = genai.embed_content(
             model=self.model_name,
             content=text,
@@ -38,6 +40,9 @@ class EmbeddingProcessor:
     def generate_embeddings(self, content):
         embeddings_data = []
         for item in content:
+            if not item['content'].strip():
+                # Skip empty content
+                continue
             embedding = self.embedding_client.embed_text(item['content'])
             embeddings_data.append({
                 'url': item['url'],
