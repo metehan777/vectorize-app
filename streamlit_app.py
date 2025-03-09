@@ -31,7 +31,7 @@ st.subheader("Web content analysis and visualization using embeddings")
 with st.sidebar:
     st.header("Input")
     url = st.text_input("Enter a URL to analyze:")
-    depth = st.slider("Crawl depth:", 0, 3, 1)
+    max_pages = st.slider("Maximum pages to crawl:", 1, 5, 3)
     process_button = st.button("Process URL")
 
 # Main content area
@@ -40,9 +40,13 @@ if process_button and url:
     st.session_state.processed_data = None
     st.session_state.visualizations = None
     
-    with st.spinner("Crawling website..."):
+    with st.spinner(f"Crawling website (max {max_pages} pages)..."):
+        # Create WebCrawler with the base URL
         crawler = WebCrawler(base_url=url)
-        content = crawler.crawl(url, depth)
+        
+        # Call crawl with a limit on the number of pages
+        # Assuming the crawler has a way to limit pages, otherwise we'll need to modify the crawler
+        content = crawler.crawl(max_pages=max_pages)
     
     with st.spinner("Generating embeddings..."):
         embedding_processor = EmbeddingProcessor()
