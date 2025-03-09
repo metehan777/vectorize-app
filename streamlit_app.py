@@ -44,9 +44,10 @@ if process_button and url:
         content = crawler.crawl(max_pages=max_pages)
     
     with st.spinner("Generating embeddings..."):
-        embedding_client = GoogleCloudEmbeddings()  # Initialize embedding client
+        embedding_client = GoogleCloudEmbeddings()
         embedding_processor = EmbeddingProcessor(embedding_client=embedding_client)
-        embeddings_data = embedding_processor.process_text(content)
+        
+        embeddings_data = embedding_processor.generate_embeddings(content)
         
         st.session_state.processed_data = embeddings_data
     
