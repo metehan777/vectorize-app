@@ -21,7 +21,7 @@ if 'processed_data' not in st.session_state:
     st.session_state.processed_data = None
 
 if 'visualizations' not in st.session_state:
-    st.session_state.visualizations = None
+    st.session_state.visualizations = {}
 
 # App title and description
 st.title("Vectorize")
@@ -37,7 +37,7 @@ with st.sidebar:
 # Main content area
 if process_button and url:
     st.session_state.processed_data = None
-    st.session_state.visualizations = None
+    st.session_state.visualizations = {}
     
     with st.spinner(f"Crawling website (max {max_pages} pages)..."):
         crawler = WebCrawler(base_url=url)
@@ -47,32 +47,39 @@ if process_button and url:
         embedding_client = GoogleCloudEmbeddings()
         embedding_processor = EmbeddingProcessor(embedding_client=embedding_client)
         
-        embeddings_data = embedding_processor.process_pages(content)
+        embeddings_data = embedding_processor.generate_embeddings(content)
         
         st.session_state.processed_data = embeddings_data
     
     if st.session_state.processed_data:
         with st.spinner("Generating visualizations..."):
             visualizer = EmbeddingVisualizer()
-            fig = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
-            st.session_state.visualizations = fig
-            
+
+            # Generate PCA and UMAP visualizations
+            st.session_state.visualizations['pca_3d'] = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca', dimensions=3)
+            st.session_state.visualizations['pca_2d'] = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca', dimensions=2)
+            st.session_state.visualizations['umap_3d'] = visualizer.visualize_embeddings(st.session_state.processed_data, method='umap', dimensions=3)
+            st.session_state.visualizations['umap_2d'] = visualizer.visualize_embeddings(st.session_state.processed_data, method='umap', dimensions=2)
+
             st.subheader("Content Statistics")
             st.write(f"Total pages crawled: {len(content)}")
             st.write(f"Total embeddings generated: {len(embeddings_data)}")
 
 # Display visualizations if available
-if st.session_state.processed_data is not None:
-    # Make sure visualizations are generated
-    if st.session_state.visualizations is None:
-        with st.spinner("Generating visualizations..."):
-            visualizer = EmbeddingVisualizer()
-            fig = visualizer.visualize_embeddings(st.session_state.processed_data, method='pca')
-            st.session_state.visualizations = fig
-    
-    # Display the visualization
-    st.subheader("Embedding Visualization")
-    st.plotly_chart(st.session_state.visualizations, use_container_width=True)
+if st.session_state.visualizations:
+    tab1, tab2, tab3, tab4 = st.tabs(["PCA 3D", "PCA 2D", "UMAP 3D", "UMAP 2D"])
+
+    with tab1:
+        st.plotly_chart(st.session_state.visualizations['pca_3d'], use_container_width=True)
+
+    with tab2:
+        st.plotly_chart(st.session_state.visualizations['pca_2d'], use_container_width=True)
+
+    with tab3:
+        st.plotly_chart(st.session_state.visualizations['umap_3d'], use_container_width=True)
+
+    with tab4:
+        st.plotly_chart(st.session_state.visualizations['umap_2d'], use_container_width=True)
 
 # Footer
 st.markdown("---")

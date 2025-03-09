@@ -11,19 +11,20 @@ class EmbeddingVisualizer:
     def __init__(self):
         warnings.filterwarnings('ignore')
         
-    def visualize_embeddings(self, embeddings_data, method='pca'):
+    def visualize_embeddings(self, embeddings_data, method='pca', dimensions=3):
         """
         Visualize embeddings using dimensionality reduction
         
         Args:
             embeddings_data: List of dictionaries with content and embedding
             method: 'pca' or 'umap' for dimensionality reduction
+            dimensions: Number of dimensions for the visualization
             
         Returns:
             Plotly figure object
         """
         if not embeddings_data:
-            return go.Figure().update_layout(title="No data to visualize")
+            return px.scatter(title="No data to visualize")
         
         # Print the first item to debug the structure
         print("Data structure sample:", embeddings_data[0].keys())
@@ -32,11 +33,10 @@ class EmbeddingVisualizer:
         # Check what keys are actually in your data
         if 'content' in embeddings_data[0]:
             # If the key is 'content' instead of 'text'
-            texts = [item['content'][:50] + '...' if len(item['content']) > 50 else item['content'] 
-                    for item in embeddings_data]
+            texts = [item['content'][:100] + '...' if len(item['content']) > 100 else item['content'] for item in embeddings_data]
         elif 'url' in embeddings_data[0]:
             # If there's a URL key, use that as label
-            texts = [item['url'] for item in embeddings_data]
+            urls = [item['url'] for item in embeddings_data]
         else:
             # Fallback to using index numbers
             texts = [f"Item {i}" for i in range(len(embeddings_data))]
@@ -57,34 +57,30 @@ class EmbeddingVisualizer:
         
         # Reduce dimensions
         if method == 'pca':
-            reducer = PCA(n_components=3)
-            reduced_data = reducer.fit_transform(embeddings)
+            reducer = PCA(n_components=dimensions)
         else:  # umap
-            reducer = umap.UMAP(n_components=3)
-            reduced_data = reducer.fit_transform(embeddings)
+            reducer = umap.UMAP(n_components=dimensions)
+        
+        reduced_data = reducer.fit_transform(embeddings)
         
         # Create dataframe for plotting
-        df = pd.DataFrame({
-            'x': reduced_data[:, 0],
-            'y': reduced_data[:, 1],
-            'z': reduced_data[:, 2] if reduced_data.shape[1] > 2 else np.zeros(len(reduced_data)),
-            'text': texts
-        })
+        df = pd.DataFrame(reduced_data, columns=[f'Component {i+1}' for i in range(dimensions)])
+        df['URL'] = [item['url'] for item in embeddings_data] if 'url' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
+        df['Title'] = [item['title'] for item in embeddings_data] if 'title' in embeddings_data[0] else [f"Item {i}" for i in range(len(embeddings_data))]
+        df['Content'] = texts
         
-        # Create 3D scatter plot
-        fig = px.scatter_3d(
-            df, x='x', y='y', z='z',
-            hover_data=['text'],
-            opacity=0.7,
-            title=f"Embedding Visualization using {method.upper()}"
-        )
+        hover_data = {'URL': True, 'Title': True, 'Content': True}
+        
+        if dimensions == 3:
+            fig = px.scatter_3d(df, x='Component 1', y='Component 2', z='Component 3',
+                                hover_data=hover_data,
+                                title=f"{method.upper()} 3D Visualization")
+        else:
+            fig = px.scatter(df, x='Component 1', y='Component 2',
+                             hover_data=hover_data,
+                             title=f"{method.upper()} 2D Visualization")
         
         fig.update_layout(
-            scene=dict(
-                xaxis_title='Component 1',
-                yaxis_title='Component 2',
-                zaxis_title='Component 3'
-            ),
             margin=dict(l=0, r=0, b=0, t=30)
         )
         
