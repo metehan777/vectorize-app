@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+import re
 from urllib.parse import urljoin, urlparse
 import time
 import json
@@ -59,81 +60,71 @@ class WebCrawler:
                 links.append(absolute_url)
         return links
     
-    def crawl(self, progress_callback=None):
-        """Start crawling the website."""
-        try:
-            # Validate the base URL first
-            if not self.base_url.startswith(('http://', 'https://')):
-                print(f"Invalid URL format: {self.base_url}. URL must start with http:// or https://")
-                return []
-                
-            # Try to make a test request to the base URL
-            try:
-                test_response = requests.get(self.base_url, timeout=10)
-                test_response.raise_for_status()  # Raise an exception for 4XX/5XX responses
-            except requests.exceptions.RequestException as e:
-                print(f"Error accessing base URL {self.base_url}: {e}")
-                return []
-                
-            # Continue with the regular crawling process
-            while self.to_visit and len(self.visited_urls) < self.max_pages:
-                # Get the next URL to visit
-                current_url = self.to_visit.pop(0)
-                
-                # Skip if already visited
-                if current_url in self.visited_urls:
-                    continue
-                    
-                print(f"Crawling: {current_url}")
-                if progress_callback:
-                    progress_callback(f"Crawling: {current_url}")
-                
-                try:
-                    # Add a small delay to be respectful
-                    time.sleep(1)
-                    
-                    # Fetch the page
-                    response = requests.get(current_url, timeout=10)
-                    
-                    # Skip if not HTML
-                    if 'text/html' not in response.headers.get('Content-Type', ''):
-                        continue
-                        
-                    # Mark as visited
-                    self.visited_urls.add(current_url)
-                    
-                    # Parse the HTML
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    
-                    # Extract title
-                    title = soup.title.string if soup.title else "No Title"
-                    
-                    # Extract text content
-                    text = self.extract_text(soup)
-                    
-                    # Store the page data
-                    self.pages_data.append({
-                        'url': current_url,
-                        'title': title,
-                        'content': text
-                    })
-                    
-                    # Extract links and add to queue
-                    links = self.extract_links(soup, current_url)
-                    for link in links:
-                        if link not in self.visited_urls and link not in self.to_visit:
-                            self.to_visit.append(link)
-                            
-                except Exception as e:
-                    print(f"Error crawling {current_url}: {e}")
-                    
-            print(f"Crawling complete. Visited {len(self.visited_urls)} pages.")
-            if progress_callback:
-                progress_callback(f"Crawling complete. Visited {len(self.visited_urls)} pages.")
-            return self.pages_data
+    def crawl(self, depth=1):
+        """
+        Crawl the website starting from the base URL up to the specified depth.
+        
+        Args:
+            depth (int): How many levels deep to crawl
             
+        Returns:
+            list: List of dictionaries containing page data
+        """
+        self._crawl_recursive(self.base_url, depth)
+        return self.pages_data
+        
+    def _crawl_recursive(self, url, depth):
+        if depth <= 0 or url in self.visited_urls or len(self.pages_data) >= self.max_pages:
+            return
+            
+        try:
+            self.visited_urls.add(url)
+            print(f"Crawling: {url}")
+            
+            response = requests.get(url, timeout=10)
+            if response.status_code != 200:
+                return
+                
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Extract title and content
+            title = soup.title.string if soup.title else "No Title"
+            
+            # Get main content (this is a simple approach, might need refinement)
+            content = ""
+            for paragraph in soup.find_all('p'):
+                content += paragraph.get_text() + "\n"
+                
+            # Store the data
+            self.pages_data.append({
+                'url': url,
+                'title': title,
+                'content': content
+            })
+            
+            # If we've reached our limit, stop
+            if len(self.pages_data) >= self.max_pages:  # Limit to max_pages
+                return
+                
+            # Find links and crawl them
+            if depth > 1:
+                links = self.extract_links(soup, url)
+                for link in links:
+                    self._crawl_recursive(link, depth - 1)
+                    
         except Exception as e:
-            print(f"Unexpected error during crawling: {e}")
-            if progress_callback:
-                progress_callback(f"Error: {e}")
-            return self.pages_data  # Return whatever we've collected so far 
+            print(f"Error crawling {url}: {e}")
+            
+    def _extract_links(self, soup, current_url):
+        links = []
+        base_domain = urlparse(self.base_url).netloc
+        
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag['href']
+            absolute_url = urljoin(current_url, href)
+            
+            # Only include links to the same domain
+            if urlparse(absolute_url).netloc == base_domain:
+                links.append(absolute_url)
+                
+        return links 
